@@ -5,11 +5,10 @@ import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 
-public class SimpleThreadPool implements Executor, AutoCloseable {
+public class ScalableThreadPool implements ThreadPool, AutoCloseable {
 
   private final int corePoolSize;
   private final int maximumPoolSize;
@@ -21,7 +20,7 @@ public class SimpleThreadPool implements Executor, AutoCloseable {
   private volatile boolean isRunning;
   private volatile long removeCandidatesAmount;
 
-  public SimpleThreadPool(int corePoolSize, int maximumPoolSize, Duration keepAliveTime,
+  public ScalableThreadPool(int corePoolSize, int maximumPoolSize, Duration keepAliveTime,
       BlockingQueue<Runnable> workQueue) {
     this.corePoolSize = corePoolSize;
     this.maximumPoolSize = maximumPoolSize;
@@ -39,7 +38,18 @@ public class SimpleThreadPool implements Executor, AutoCloseable {
   }
 
   @Override
-  public void execute(Runnable command) {
+  public void start() {
+    workersLock.lock();
+    while (workers.size() < corePoolSize) {
+      Worker worker = new Worker();
+      workers.add(worker);
+      worker.start();
+    }
+    workersLock.unlock();
+  }
+
+  @Override
+  public void execute(Runnable task) {
     if (workers.size() < maximumPoolSize) {
       workersLock.lock();
       Worker worker = new Worker();
@@ -47,12 +57,15 @@ public class SimpleThreadPool implements Executor, AutoCloseable {
       worker.start();
       workersLock.unlock();
     }
-    var taskAdded = taskQueue.offer(command);
+    var taskAdded = taskQueue.offer(task);
     if(!taskAdded) {
       throw new IllegalStateException("Task queue is full");
     }
   }
 
+  /**
+   * @return текущее количество потоков в пуле.
+   */
   public long threadsAmount() {
     return workers.size();
   }

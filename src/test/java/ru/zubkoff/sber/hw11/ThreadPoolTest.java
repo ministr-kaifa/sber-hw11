@@ -10,7 +10,7 @@ import java.util.concurrent.CountDownLatch;
 import org.junit.jupiter.api.RepeatedTest;
 import org.junit.jupiter.api.Test;
 
-class SimpleThreadPoolTest {
+class ThreadPoolTest {
 
   @RepeatedTest(100)
   void givenMoreThanCorePoolSizeTasks_whenExecutingTasks_thenAfterKeepAliveTimeAmountOfThreadsLessThanOrEqualsToCorePoolSize() throws Exception {
@@ -18,7 +18,7 @@ class SimpleThreadPoolTest {
     var coreSize = 10;
     var maxSize = 100;
     var keepAlive = Duration.ZERO;
-    try(SimpleThreadPool threadPool = new SimpleThreadPool(coreSize, maxSize, keepAlive, new ArrayBlockingQueue<>(10_000));) {
+    try(ScalableThreadPool threadPool = new ScalableThreadPool(coreSize, maxSize, keepAlive, new ArrayBlockingQueue<>(10_000));) {
       
     //when
       CountDownLatch start = new CountDownLatch(1);
@@ -45,14 +45,14 @@ class SimpleThreadPoolTest {
   }
 
   @Test
-  void givenOneTaskCapacityThreadPool_whenExecuteMoreTasksThanCapacity_thenThrowsIllegalStateException() throws Exception {
+  void givenOneTaskCapacityThreadPool_whenExecuteMoreTasksThanWorkQueueCapacity_thenThrowsIllegalStateException() throws Exception {
     //given
     var coreSize = 0;
     var maxSize = 0;
     var keepAlive = Duration.ZERO;
-    try(SimpleThreadPool threadPool = new SimpleThreadPool(coreSize, maxSize, keepAlive, new ArrayBlockingQueue<>(1));) {
-
-    //when then
+    try(ScalableThreadPool threadPool = new ScalableThreadPool(coreSize, maxSize, keepAlive, new ArrayBlockingQueue<>(1));) {
+      
+      //when then
       threadPool.execute(()->{});
       assertThrows(IllegalStateException.class, () -> threadPool.execute(()->{}));
     }
